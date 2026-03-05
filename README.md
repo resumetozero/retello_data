@@ -28,6 +28,8 @@ retello/
 └── README.md            # This file
 ```
 
+![Architecture](images/architecture.png)
+
 ## Installation
 
 1. **Clone the repository**:
@@ -82,6 +84,9 @@ The SQLite database (`Database/all_products.db`) contains two main tables:
 
 - **models**: Stores unique brand and model combinations
 - **variants**: Stores specific product variants with specifications
+
+![Architecture](images/schema.png)
+
 
 ### Models Table
 - `id`: Primary key
