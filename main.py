@@ -1,11 +1,8 @@
 from scrapper import versus_scrape, amazon_scrape, croma_scrape
 # from acer import acer_scrape
 from parser import parse_title
-from Database.database import create_tables, insert_product
+from Database.database import create_tables, get_product_family, insert_product, clean_model_names, get_all_products_json
 import json
-
-import re
-
 import re
 
 def clean_product(product):
@@ -105,3 +102,10 @@ if __name__ == "__main__":
             insert_product(item)
             
     print("Data inserted into the database successfully.")
+
+    #this will create data only based on model names and remove years and other details from the model name to create a family of products
+    # clean_model_names() 
+
+    # print(get_product_family("Model Name")) # user based product family creation 
+    
+    print(json.dumps(get_all_products_json(), indent=4)) #all data in json format 
