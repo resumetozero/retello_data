@@ -8,23 +8,27 @@ A Python-based web scraper that collects laptop product data from various e-comm
   - Versus.com (comparison site)
   - Amazon.in
   - Croma.com
+  - Flipkart.com
 - **Data Parsing**: Uses Ollama with Qwen2.5 3B model to extract structured specifications from product titles
 - **Data Cleaning**: Sanitizes and standardizes product data (GPU, RAM, Storage, etc.)
 - **Database Storage**: Stores parsed data in SQLite database with normalized schema
-- **Data Export**: Exports database tables to CSV files
+- **Data Export**: Exports database contents to a JSON file (`products.json`)
 
 ## Project Structure
 
 ```
 retello/
 ├── main.py              # Main script for scraping and processing data
-├── scrapper.py          # Web scraping functions using Selenium
-├── parser.py            # LLM-based title parsing
-├── dbtocsv.py           # Database to CSV export utility
+├── scrapper.py          # Web scraping functions using Selenium and Playwright
+├── parser.py            # LLM-based title parsing using Ollama
 ├── acer.py              # Additional scraper (currently commented out)
+├── products.json        # Exported product data in JSON format
 ├── requirements.txt     # Python dependencies
 ├── Database/
-│   └── database.py      # Database operations and schema
+│   ├── database.py      # Database operations and schema
+│   └── updates.py       # Database update utilities
+├── images/              # Project images (e.g., architecture diagrams)
+├── __pycache__/         # Python cache files
 └── README.md            # This file
 ```
 
@@ -70,17 +74,11 @@ retello/
    ```bash
    python main.py
    ```
-   Enter your search query when prompted (e.g., "laptop").
-
-2. **Export data to CSV**:
-   ```bash
-   python dbtocsv.py
-   ```
-   This will create CSV files for each database table.
+   Enter your search query when prompted (e.g., "laptop"). The script will scrape data from the websites, parse titles using the LLM, clean the data, store it in the database, and export to `products.json`.
 
 ## Database Schema
 
-The SQLite database (`Database/all_products.db`) contains two main tables:
+The SQLite database (`Database/new_all_products.db`) contains two main tables:
 
 - **models**: Stores unique brand and model combinations
 - **variants**: Stores specific product variants with specifications
@@ -108,10 +106,10 @@ The SQLite database (`Database/all_products.db`) contains two main tables:
 ## Dependencies
 
 - **beautifulsoup4**: HTML parsing
-- **selenium**: Web browser automation
+- **selenium**: Web browser automation for Versus.com
 - **requests**: HTTP requests
-- **pandas**: Data manipulation and CSV export
-- **playwright**: Alternative web automation (not currently used)
+- **pandas**: Data manipulation
+- **playwright**: Web automation for Amazon.in and Flipkart.com
 - **lxml**: XML/HTML parser
 - **Ollama**: Local LLM for title parsing
 
@@ -119,11 +117,12 @@ The SQLite database (`Database/all_products.db`) contains two main tables:
 
 - **Ollama URL**: Default is `http://localhost:11434/api/generate`
 - **Model**: Currently using `qwen2.5:3b`
-- **Database Path**: `Database/all_products.db`
+- **Database Path**: `Database/new_all_products.db`
 
 ## Notes
 
-- The scraper uses headless Chrome for web scraping
+- The scraper uses headless Chrome for web scraping (Selenium for Versus, Playwright for others)
 - LLM parsing requires Ollama to be running locally
-- Some scrapers (Flipkart, HP, Dell, Acer) are commented out in the main script
+- Some scrapers (HP, Dell, Acer) are commented out in the main script
 - The project focuses on laptop specifications extraction
+- Data is exported to `products.json` after processing
