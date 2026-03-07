@@ -103,30 +103,20 @@ def parse_title(titles, batch_size=3):
     results = []
 
     for i in range(0, len(titles), batch_size):
-
         batch = titles[i:i + batch_size]
-
         print(f"Processing batch {i//batch_size + 1}...")
-
         parsed = call_llm(batch)
-
         for idx, item in enumerate(parsed):
-
             original_title = batch[idx] if idx < len(batch) else None
-
             item = normalize_product(item, original_title)
-
             results.append(item)
-
     return results
 
 
 def extract_model_code(title):
     match = re.search(r'[A-Z]{2,5}\d{2,}-\d+[A-Z]*', title)
-
     if match:
         return match.group()
-
     return None
 
 
@@ -136,31 +126,22 @@ def normalize_product(product, original_title=None):
 
 
     if product.get("Model"):
-
         model = product["Model"]
-
         model = re.split(r',|Intel|AMD|Ryzen|Core', model)[0].strip()
-
         product["Model"] = model
 
     if product.get("Screen_size"):
-
         m = re.search(r'\d{1,2}\.?[\d]?', product["Screen_size"])
-
         if m:
             product["Screen_size"] = f"{m.group()} inch"
 
     if product.get("RAM"):
-
         m = re.search(r'\d+', product["RAM"])
-
         if m:
             product["RAM"] = f"{m.group()}GB"
 
     if product.get("Storage"):
-
         m = re.search(r'(\d+)\s?(GB|TB)', product["Storage"], re.I)
-
         if m:
             product["Storage"] = f"{m.group(1)}{m.group(2).upper()} SSD"
 
@@ -168,16 +149,12 @@ def normalize_product(product, original_title=None):
         product["GPU"] = None
 
     if product.get("Weight"):
-
         m = re.search(r'\d+\.?\d*', product["Weight"])
-
         if m:
             product["Weight"] = f"{m.group()}KG"
 
     if original_title:
-
         model_code = extract_model_code(original_title)
-
         if model_code:
             product["Model_Code"] = model_code
       

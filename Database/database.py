@@ -8,6 +8,7 @@ DB_PATH = "Database/new_all_products.db"
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 def create_tables():
@@ -18,33 +19,42 @@ def create_tables():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS models (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        brand TEXT,
-        model TEXT,
+        brand TEXT NOT NULL,
+        model TEXT NOT NULL,
         UNIQUE(brand, model)
     )
     """)
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS variants (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        model_id INTEGER,
-        cpu TEXT,
-        gpu TEXT,
-        ram TEXT,
-        storage TEXT,
-        screen_size TEXT,
-        color TEXT,
-        weight TEXT,
-        year TEXT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    model_id INTEGER NOT NULL,
+    cpu TEXT NOT NULL,
+    gpu TEXT,
+    ram TEXT NOT NULL,
+    storage TEXT NOT NULL,
+    screen_size TEXT NOT NULL,
+    color TEXT,
+    weight TEXT,
+    year TEXT,
 
-        UNIQUE(model_id, cpu, ram, storage),
+    UNIQUE(model_id, cpu, ram, storage, screen_size),
 
-        FOREIGN KEY(model_id) REFERENCES models(id)
-    )
+    FOREIGN KEY(model_id) REFERENCES models(id)
+)
     """)
 
     conn.commit()
     conn.close()
+    
+    
+def normalize_text(text):
+    if text is None:
+        return None
+    text = str(text).strip().lower()
+    if text == "":
+        return None
+    return text
 
 
 def insert_product(product):
@@ -52,9 +62,25 @@ def insert_product(product):
     conn = get_connection()
     cursor = conn.cursor()
 
-    brand = product.get("Brand")
-    model = product.get("Model")
+    brand = normalize_text(product.get("Brand"))
+    model = normalize_text(product.get("Model"))
+    cpu = normalize_text(product.get("CPU"))
+    gpu = normalize_text(product.get("GPU"))
+    ram = normalize_text(product.get("RAM"))
+    storage = normalize_text(product.get("Storage"))
+    screen = normalize_text(product.get("Screen_size"))
 
+    color = normalize_text(product.get("Color"))
+    weight = normalize_text(product.get("Weight"))
+    year = normalize_text(product.get("Year"))
+
+    required = [brand, model, cpu, ram, storage, screen]
+
+    if not all(required):
+        conn.close()
+        return
+
+    # Insert model
     cursor.execute("""
     INSERT OR IGNORE INTO models (brand, model)
     VALUES (?, ?)
@@ -66,16 +92,14 @@ def insert_product(product):
     """, (brand, model))
 
     row = cursor.fetchone()
+
     if not row:
         conn.close()
         return
 
     model_id = row["id"]
 
-    cpu = product.get("CPU") or ""
-    ram = product.get("RAM") or ""
-    storage = product.get("Storage") or ""
-
+    # Try inserting variant
     cursor.execute("""
     INSERT OR IGNORE INTO variants
     (model_id, cpu, gpu, ram, storage, screen_size, color, weight, year)
@@ -83,92 +107,41 @@ def insert_product(product):
     """, (
         model_id,
         cpu,
-        product.get("GPU"),
+        gpu,
         ram,
         storage,
-        product.get("Screen_size"),
-        product.get("Color"),
-        product.get("Weight"),
-        product.get("Year")
+        screen,
+        color,
+        weight,
+        year
     ))
 
-    conn.commit()
-    conn.close()
+    # Fetch the variant (existing or newly inserted)
+    cursor.execute("""
+    SELECT id, color, weight, year
+    FROM variants
+    WHERE model_id=? AND cpu=? AND ram=? AND storage=? AND screen_size=?
+    """, (model_id, cpu, ram, storage, screen))
 
+    variant = cursor.fetchone()
 
-def clean_model_names():
+    if variant:
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+        new_color = variant["color"] or color
+        new_weight = variant["weight"] or weight
+        new_year = variant["year"] or year
 
-    cursor.execute("SELECT id, brand, model FROM models")
-    rows = cursor.fetchall()
-
-    for r in rows:
-
-        model_id = r["id"]
-        brand = r["brand"]
-        model = r["model"]
-
-        cleaned_model = re.sub(r"\s*\(\d{4}\)", "", model).strip()
-
-        if cleaned_model == model:
-            continue
-
-        print(f"Cleaning: {model} → {cleaned_model}")
-
-        cursor.execute(
-            "SELECT id FROM models WHERE brand=? AND model=?",
-            (brand, cleaned_model)
-        )
-
-        existing = cursor.fetchone()
-
-        if existing:
-
-            new_model_id = existing["id"]
-
-            print(f"Merging model_id {model_id} → {new_model_id}")
-
-            # move variants safely
-            cursor.execute(
-                """
-                INSERT OR IGNORE INTO variants
-                (model_id, cpu, gpu, ram, storage, screen_size, color, weight, year)
-                SELECT ?, cpu, gpu, ram, storage, screen_size, color, weight, year
-                FROM variants
-                WHERE model_id = ?
-                """,
-                (new_model_id, model_id)
-            )
-
-            # delete old variants
-            cursor.execute(
-                "DELETE FROM variants WHERE model_id=?",
-                (model_id,)
-            )
-
-            # delete old model
-            cursor.execute(
-                "DELETE FROM models WHERE id=?",
-                (model_id,)
-            )
-
-        else:
-
-            cursor.execute(
-                "UPDATE models SET model=? WHERE id=?",
-                (cleaned_model, model_id)
-            )
+        cursor.execute("""
+        UPDATE variants
+        SET color=?, weight=?, year=?
+        WHERE id=?
+        """, (new_color, new_weight, new_year, variant["id"]))
 
     conn.commit()
     conn.close()
-
-    print("Model cleaning + merge complete.")
-
 
 def get_product_family(model_name):
+    model_name = normalize_text(model_name)
 
     conn = get_connection()
     cursor = conn.cursor()
